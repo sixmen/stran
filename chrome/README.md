@@ -1,6 +1,6 @@
-# S-Tran Firefox Extension
+# S-Tran Chrome Extension
 
-S-Tran is a Firefox browser extension that translates webpage text using OpenAI's API.
+S-Tran is a Chrome browser extension that translates webpage text using OpenAI's API.
 
 ## Features
 
@@ -12,10 +12,10 @@ S-Tran is a Firefox browser extension that translates webpage text using OpenAI'
 
 ## Installation
 
-1. Open Firefox browser and navigate to `about:debugging`
-2. Click on "This Firefox" tab
-3. Click "Load Temporary Add-on" button
-4. Select the `firefox/manifest.json` file from this repository
+1. Open Chrome browser and navigate to `chrome://extensions`
+2. Enable "Developer mode" in the top right corner
+3. Click "Load unpacked" button
+4. Select the `chrome` directory from this repository
 
 ## How to Use
 
