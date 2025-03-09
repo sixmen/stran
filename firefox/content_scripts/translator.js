@@ -87,6 +87,9 @@ async function handleTranslate() {
     return;
   }
 
+  hidePopup();
+
+  let container;
   try {
     const result = await browser.storage.local.get(STORAGE_API_KEY);
     if (!result[STORAGE_API_KEY]) {
@@ -94,14 +97,19 @@ async function handleTranslate() {
       return;
     }
 
+    const selection = window.getSelection();
+    const range = selection.getRangeAt(0);
+
     const temp_element = document.createElement('span');
     temp_element.textContent = 'Translating...';
     temp_element.style.color = '#666';
+    container = document.createElement('span');
+    container.appendChild(document.createElement('br'));
+    container.appendChild(temp_element);
 
-    const selection = window.getSelection();
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-    range.insertNode(temp_element);
+    range.collapse(false);
+    range.insertNode(container);
+    selection.removeAllRanges();
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -131,12 +139,13 @@ async function handleTranslate() {
     }
 
     const translated_text = data.choices[0].message.content.trim();
-    const text_node = document.createTextNode(translated_text);
-    temp_element.parentNode.replaceChild(text_node, temp_element);
+    const translation = document.createElement('span');
+    translation.textContent = translated_text;
+    translation.style.color = '#666';
+    temp_element.parentNode.replaceChild(translation, temp_element);
   } catch (error) {
     alert(`Translation error: ${error.message}`);
-  } finally {
-    hidePopup();
+    container?.parentNode?.removeChild(container);
   }
 }
 
