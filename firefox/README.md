@@ -1,11 +1,13 @@
 # S-Trans Firefox Extension
 
-S-Trans is a Firefox browser extension that translates webpage text to Korean using OpenAI's API.
+S-Trans is a Firefox browser extension that translates webpage text using OpenAI's API.
 
 ## Features
 
+- Translate selected text to multiple languages (Korean, English, Japanese, Chinese, Spanish, French, German)
 - Translation popup appears when text is selected on a webpage
-- Translates selected text to Korean using OpenAI API
+- Click any text element to automatically select and translate it
+- Quick translate with Command/Ctrl + Click (translates immediately without showing popup)
 - Works on all websites
 
 ## Installation
@@ -18,10 +20,12 @@ S-Trans is a Firefox browser extension that translates webpage text to Korean us
 ## How to Use
 
 1. Click the extension icon to open settings
-2. Enter your OpenAI API Key and save
-3. Select any text on a webpage that you want to translate
-4. Click the "Translate" button that appears near the selected text
-5. The selected text will be replaced with its Korean translation
+2. Enter your OpenAI API Key and select your target translation language
+3. There are three ways to translate text:
+   - Select any text and click the "Translate" button that appears
+   - Click on any text element to select it and show the translate button
+   - Hold Command (Mac) or Ctrl (Windows/Linux) and click text to translate immediately
+4. The translation will appear below the original text in gray
 
 ## Important Notes
 
