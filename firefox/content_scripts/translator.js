@@ -2,6 +2,16 @@ const STORAGE_API_KEY = 'api_key';
 
 let selected_text = '';
 let popup = null;
+let is_translation_enabled = false;
+
+browser.runtime.onMessage.addListener((message) => {
+  if (message.type === 'translationStateChanged') {
+    is_translation_enabled = message.enabled;
+    if (!is_translation_enabled) {
+      hidePopup();
+    }
+  }
+});
 
 function createPopup() {
   const popup = document.createElement('div');
@@ -36,6 +46,10 @@ function createPopup() {
 }
 
 function showPopup(x, y) {
+  if (!is_translation_enabled) {
+    return;
+  }
+
   if (!popup) {
     popup = createPopup();
   }
@@ -52,6 +66,10 @@ function hidePopup() {
 }
 
 document.addEventListener('mouseup', (event) => {
+  if (!is_translation_enabled) {
+    return;
+  }
+
   const selection = window.getSelection();
   selected_text = selection.toString().trim();
 
@@ -65,7 +83,7 @@ document.addEventListener('mouseup', (event) => {
 });
 
 async function handleTranslate() {
-  if (!selected_text) {
+  if (!selected_text || !is_translation_enabled) {
     return;
   }
 
