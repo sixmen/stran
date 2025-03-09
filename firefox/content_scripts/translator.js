@@ -1,9 +1,10 @@
 const STORAGE_API_KEY = 'api_key';
 const STORAGE_TARGET_LANG = 'target_lang';
 
-let selected_text = '';
 let popup = null;
 let is_translation_enabled = false;
+let last_highlighted_element = null;
+let translating = false;
 
 const LANGUAGES = {
   ko: '한국어',
@@ -14,6 +15,15 @@ const LANGUAGES = {
   fr: 'Français',
   de: 'Deutsch',
 };
+
+const style = document.createElement('style');
+style.textContent = `
+  .s-trans-hoverable {
+    background-color: rgba(0, 96, 223, 0.1) !important;
+    cursor: pointer !important;
+  }
+`;
+document.head.appendChild(style);
 
 browser.runtime.onMessage.addListener((message) => {
   if (message.type === 'translationStateChanged') {
@@ -77,13 +87,12 @@ function hidePopup() {
 }
 
 document.addEventListener('mouseup', (event) => {
-  if (!is_translation_enabled) {
+  if (!is_translation_enabled || translating) {
     return;
   }
 
   const selection = window.getSelection();
-  selected_text = selection.toString().trim();
-
+  const selected_text = selection.toString().trim();
   if (selected_text) {
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
@@ -94,70 +103,110 @@ document.addEventListener('mouseup', (event) => {
 });
 
 async function handleTranslate() {
-  if (!selected_text || !is_translation_enabled) {
+  if (!is_translation_enabled || translating) {
     return;
   }
 
   hidePopup();
 
-  let container;
+  const storage = await browser.storage.local.get([STORAGE_API_KEY, STORAGE_TARGET_LANG]);
+  const api_key = storage[STORAGE_API_KEY];
+  const target_lang = storage[STORAGE_TARGET_LANG] || 'ko'; // Default to Korean if not set
+  if (!api_key) {
+    alert('Please set your OpenAI API key in the extension settings');
+    return;
+  }
+
   try {
-    const storage = await browser.storage.local.get([STORAGE_API_KEY, STORAGE_TARGET_LANG]);
-    const api_key = storage[STORAGE_API_KEY];
-    const target_lang = storage[STORAGE_TARGET_LANG] || 'ko'; // Default to Korean if not set
-    if (!api_key) {
-      alert('Please set your OpenAI API key in the extension settings');
-      return;
-    }
+    translating = true;
 
     const selection = window.getSelection();
-    const range = selection.getRangeAt(0);
+    const common_ancestor = selection.getRangeAt(0).commonAncestorContainer;
+    selection.removeAllRanges();
+    const range = document.createRange();
+    range.selectNodeContents(common_ancestor);
+    selection.addRange(range);
+    const selected_text = selection.toString().trim();
+    const paragraphs = selected_text
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter((p) => p);
+    const paragraph_nodes = [];
 
-    const temp_element = document.createElement('span');
-    temp_element.textContent = 'Translating...';
-    temp_element.style.color = '#666';
-    container = document.createElement('span');
-    container.appendChild(document.createElement('br'));
-    container.appendChild(temp_element);
-
-    range.collapse(false);
-    range.insertNode(container);
+    // Find last text nodes that contain the paragraph text
+    let paragraph_index = 0;
+    let remain_paragraph_text = paragraphs[paragraph_index];
+    const walker = document.createTreeWalker(common_ancestor, NodeFilter.SHOW_TEXT, () => NodeFilter.FILTER_ACCEPT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const text = node.textContent.trim();
+      if (text && remain_paragraph_text.startsWith(text)) {
+        remain_paragraph_text = remain_paragraph_text.slice(text.length).trim();
+        if (remain_paragraph_text.length === 0) {
+          paragraph_nodes.push(node);
+          paragraph_index++;
+          remain_paragraph_text = paragraphs[paragraph_index];
+        }
+      }
+    }
+    while (paragraph_index < paragraphs.length) {
+      paragraph_nodes.push(range.endContainer);
+      paragraph_index++;
+    }
     selection.removeAllRanges();
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${api_key}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a translator. Translate the given text to ${LANGUAGES[target_lang]}. Only respond with the translated text, without any additional explanation or context.`,
-          },
-          {
-            role: 'user',
-            content: selected_text,
-          },
-        ],
-      }),
-    });
+    for (let i = 0; i < paragraphs.length; i++) {
+      let result_element;
+      try {
+        const paragraph = paragraphs[i];
+        const paragraph_node = paragraph_nodes[i];
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Translation failed');
+        result_element = document.createElement('span');
+        result_element.textContent = 'Translating...';
+        result_element.style.cssText = `
+            color: #666;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+          `;
+        const container = document.createElement('span');
+        container.appendChild(document.createElement('br'));
+        container.appendChild(result_element);
+        paragraph_node.parentNode.insertBefore(container, paragraph_node.nextSibling);
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${api_key}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: `You are a translator. Translate the given text to ${LANGUAGES[target_lang]}. Only respond with the translated text, without any additional explanation or context.`,
+              },
+              {
+                role: 'user',
+                content: paragraph,
+              },
+            ],
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error?.message || 'Translation failed');
+        }
+        const translated_text = data.choices[0].message.content.trim();
+        result_element.textContent = translated_text;
+      } catch (error) {
+        result_element.textContent = `Translation error: ${error.message}`;
+      }
     }
-
-    const translated_text = data.choices[0].message.content.trim();
-    const translation = document.createElement('span');
-    translation.textContent = translated_text;
-    translation.style.color = '#666';
-    temp_element.parentNode.replaceChild(translation, temp_element);
   } catch (error) {
     alert(`Translation error: ${error.message}`);
-    container?.parentNode?.removeChild(container);
+  } finally {
+    translating = false;
   }
 }
 
@@ -167,22 +216,55 @@ document.addEventListener('mousedown', (event) => {
   }
 });
 
-document.addEventListener('click', (event) => {
-  if (!is_translation_enabled) {
+function isInteractiveElement(element) {
+  return (
+    element.tagName === 'INPUT' ||
+    element.tagName === 'TEXTAREA' ||
+    element.tagName === 'SELECT' ||
+    element.tagName === 'BUTTON' ||
+    element.tagName === 'A'
+  );
+}
+
+document.addEventListener('mousemove', (event) => {
+  if (!is_translation_enabled || translating) {
     return;
   }
+
+  const target = event.target;
+  if (last_highlighted_element === target) {
+    return;
+  }
+
+  removeHighlight();
+
+  // Skip if hovering over the popup or interactive elements
+  if (popup?.contains(target) || isInteractiveElement(target)) {
+    return;
+  }
+
+  // Add highlight to current element if it has text
+  if (target.textContent?.trim()) {
+    target.classList.add('s-trans-hoverable');
+    last_highlighted_element = target;
+  }
+});
+
+document.addEventListener('mouseleave', () => {
+  removeHighlight();
+});
+
+document.addEventListener('click', (event) => {
+  if (!is_translation_enabled || translating) {
+    return;
+  }
+
+  removeHighlight();
 
   const clicked_element = event.target;
 
   // Skip if clicking on the popup or if element is interactive
-  if (
-    popup?.contains(clicked_element) ||
-    clicked_element.tagName === 'INPUT' ||
-    clicked_element.tagName === 'TEXTAREA' ||
-    clicked_element.tagName === 'SELECT' ||
-    clicked_element.tagName === 'BUTTON' ||
-    clicked_element.tagName === 'A'
-  ) {
+  if (popup?.contains(clicked_element) || isInteractiveElement(clicked_element)) {
     return;
   }
 
@@ -191,14 +273,11 @@ document.addEventListener('click', (event) => {
     return;
   }
 
-  const range = document.createRange();
-  range.selectNodeContents(clicked_element);
-
   const selection = window.getSelection();
   selection.removeAllRanges();
+  const range = document.createRange();
+  range.selectNodeContents(clicked_element);
   selection.addRange(range);
-
-  selected_text = text;
 
   if (event.ctrlKey || event.metaKey) {
     handleTranslate();
@@ -207,3 +286,10 @@ document.addEventListener('click', (event) => {
     showPopup(rect.left, rect.bottom + 5);
   }
 });
+
+function removeHighlight() {
+  if (last_highlighted_element) {
+    last_highlighted_element.classList.remove('s-trans-hoverable');
+    last_highlighted_element = null;
+  }
+}
