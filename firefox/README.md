@@ -1,6 +1,6 @@
-# S-Trans Firefox Extension
+# S-Tran Firefox Extension
 
-S-Trans is a Firefox browser extension that translates webpage text using OpenAI's API.
+S-Tran is a Firefox browser extension that translates webpage text using OpenAI's API.
 
 ## Features
 
