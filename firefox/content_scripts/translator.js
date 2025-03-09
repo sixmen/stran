@@ -1,8 +1,19 @@
 const STORAGE_API_KEY = 'api_key';
+const STORAGE_TARGET_LANG = 'target_lang';
 
 let selected_text = '';
 let popup = null;
 let is_translation_enabled = false;
+
+const LANGUAGES = {
+  ko: '한국어',
+  en: 'English',
+  ja: '日本語',
+  zh: '中文',
+  es: 'Español',
+  fr: 'Français',
+  de: 'Deutsch',
+};
 
 browser.runtime.onMessage.addListener((message) => {
   if (message.type === 'translationStateChanged') {
@@ -91,8 +102,10 @@ async function handleTranslate() {
 
   let container;
   try {
-    const result = await browser.storage.local.get(STORAGE_API_KEY);
-    if (!result[STORAGE_API_KEY]) {
+    const storage = await browser.storage.local.get([STORAGE_API_KEY, STORAGE_TARGET_LANG]);
+    const api_key = storage[STORAGE_API_KEY];
+    const target_lang = storage[STORAGE_TARGET_LANG] || 'ko'; // Default to Korean if not set
+    if (!api_key) {
       alert('Please set your OpenAI API key in the extension settings');
       return;
     }
@@ -115,15 +128,14 @@ async function handleTranslate() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${result[STORAGE_API_KEY]}`,
+        'Authorization': `Bearer ${api_key}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content:
-              'You are a translator. Translate the given text to Korean. Only respond with the translated text, without any additional explanation or context.',
+            content: `You are a translator. Translate the given text to ${LANGUAGES[target_lang]}. Only respond with the translated text, without any additional explanation or context.`,
           },
           {
             role: 'user',
