@@ -166,3 +166,44 @@ document.addEventListener('mousedown', (event) => {
     hidePopup();
   }
 });
+
+document.addEventListener('click', (event) => {
+  if (!is_translation_enabled) {
+    return;
+  }
+
+  const clicked_element = event.target;
+
+  // Skip if clicking on the popup or if element is interactive
+  if (
+    popup?.contains(clicked_element) ||
+    clicked_element.tagName === 'INPUT' ||
+    clicked_element.tagName === 'TEXTAREA' ||
+    clicked_element.tagName === 'SELECT' ||
+    clicked_element.tagName === 'BUTTON' ||
+    clicked_element.tagName === 'A'
+  ) {
+    return;
+  }
+
+  const text = clicked_element.textContent?.trim();
+  if (!text) {
+    return;
+  }
+
+  const range = document.createRange();
+  range.selectNodeContents(clicked_element);
+
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  selected_text = text;
+
+  if (event.ctrlKey || event.metaKey) {
+    handleTranslate();
+  } else {
+    const rect = range.getBoundingClientRect();
+    showPopup(rect.left, rect.bottom + 5);
+  }
+});
