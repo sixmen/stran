@@ -132,6 +132,7 @@ async function handleTranslate() {
       .map((p) => p.trim())
       .filter((p) => p);
     const paragraph_nodes = [];
+    const paragraph_node_next_siblings = [];
 
     // Find last text nodes that contain the paragraph text
     let paragraph_index = 0;
@@ -139,18 +140,26 @@ async function handleTranslate() {
     const walker = document.createTreeWalker(common_ancestor, NodeFilter.SHOW_TEXT, () => NodeFilter.FILTER_ACCEPT);
     let node;
     while ((node = walker.nextNode())) {
-      const text = node.textContent.trim();
-      if (text && remain_paragraph_text.startsWith(text)) {
-        remain_paragraph_text = remain_paragraph_text.slice(text.length).trim();
-        if (remain_paragraph_text.length === 0) {
-          paragraph_nodes.push(node);
-          paragraph_index++;
-          remain_paragraph_text = paragraphs[paragraph_index];
+      const lines = node.textContent
+        .trim()
+        .split(/\n+/)
+        .map((p) => p.trim())
+        .filter((p) => p);
+      for (const line of lines) {
+        if (line && remain_paragraph_text.startsWith(line)) {
+          remain_paragraph_text = remain_paragraph_text.slice(line.length).trim();
+          if (remain_paragraph_text.length === 0) {
+            paragraph_nodes.push(node);
+            paragraph_node_next_siblings.push(node.nextSibling);
+            paragraph_index++;
+            remain_paragraph_text = paragraphs[paragraph_index];
+          }
         }
       }
     }
     while (paragraph_index < paragraphs.length) {
       paragraph_nodes.push(range.endContainer);
+      paragraph_node_next_siblings.push(range.endContainer.nextSibling);
       paragraph_index++;
     }
     selection.removeAllRanges();
@@ -160,6 +169,7 @@ async function handleTranslate() {
       try {
         const paragraph = paragraphs[i];
         const paragraph_node = paragraph_nodes[i];
+        const paragraph_node_next_sibling = paragraph_node_next_siblings[i];
 
         result_element = document.createElement('span');
         result_element.textContent = 'Translating...';
@@ -171,7 +181,7 @@ async function handleTranslate() {
         const container = document.createElement('span');
         container.appendChild(document.createElement('br'));
         container.appendChild(result_element);
-        paragraph_node.parentNode.insertBefore(container, paragraph_node.nextSibling);
+        paragraph_node.parentNode.insertBefore(container, paragraph_node_next_sibling);
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
