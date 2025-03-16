@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-import sys
 
 from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWidgets import QMainWindow
@@ -16,6 +15,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtCore import Signal
 
 from browsertabwidget import BrowserTabWidget
+from settings import SettingsDialog
 
 if TYPE_CHECKING:
     from PySide6.QtWebEngineCore import QWebEngineProfile
@@ -44,6 +44,7 @@ class BrowserWindow(QMainWindow):
 
         menu_bar = self.menuBar()
         menu_bar.addMenu(self._create_file_menu())
+        menu_bar.addMenu(self._create_settings_menu())
 
         [
             self._toolbar,
@@ -161,6 +162,19 @@ class BrowserWindow(QMainWindow):
         file_menu.addAction(close_action)
 
         return file_menu
+
+    def _create_settings_menu(self):
+        settings_menu = QMenu("Settings")
+
+        preferences_action = QAction("Preferences", self)
+        preferences_action.triggered.connect(self._open_settings_dialog)
+        settings_menu.addAction(preferences_action)
+
+        return settings_menu
+
+    def _open_settings_dialog(self):
+        settings_dialog = SettingsDialog(self)
+        settings_dialog.exec()
 
     def _new_window(self):
         window = self._browser.create_window()

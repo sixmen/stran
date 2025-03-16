@@ -6,6 +6,9 @@ from PySide6.QtCore import Signal
 from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWebEngineCore import QWebEngineProfile
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import QMessageBox
+
+from settings import get_api_key
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QAction
@@ -44,6 +47,10 @@ class BrowserWebView(QWebEngineView):
         return self.page().action(web_action).isEnabled()
 
     def toggle_translation(self):
+        api_key = get_api_key()
+        if not api_key:
+            QMessageBox.warning(self, "Warning", "Please enter an API key")
+            return
         self._translation_enabled = not self._translation_enabled
         self._send_translation_state_changed()
         self.translation_enabled_changed.emit(self._translation_enabled)
