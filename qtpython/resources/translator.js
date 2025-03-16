@@ -3,40 +3,6 @@ let is_translation_enabled = false;
 let last_highlighted_element = null;
 let translating = false;
 
-const worker_waiter = {};
-
-new QWebChannel(qt.webChannelTransport, function (channel) {
-  window.translator = channel.objects.translator;
-  window.translator.translationComplete.connect((result) => {
-    const { worker, error, translated_text } = JSON.parse(result);
-    const waiter = worker_waiter[worker];
-    if (waiter) {
-      delete worker_waiter[worker];
-      if (error) {
-        waiter.reject(new Error(error));
-      } else {
-        waiter.resolve(translated_text);
-      }
-    }
-  });
-});
-
-const translateText = async function (text) {
-  const result = JSON.parse(await window.translator.translate(text));
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  return new Promise((resolve, reject) => {
-    worker_waiter[result.worker] = { resolve, reject };
-    setTimeout(() => {
-      if (worker_waiter[result.worker]) {
-        delete worker_waiter[result.worker];
-        reject(new Error('Translation timeout'));
-      }
-    }, 60000);
-  });
-};
-
 const LANGUAGES = {
   ko: '한국어',
   en: 'English',
@@ -56,12 +22,46 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+const worker_waiter = {};
+
+new QWebChannel(qt.webChannelTransport, function (channel) {
+  window.translator = channel.objects.translator;
+  window.translator.translationComplete.connect((result) => {
+    const { worker, error, translated_text } = JSON.parse(result);
+    const waiter = worker_waiter[worker];
+    if (waiter) {
+      delete worker_waiter[worker];
+      if (error) {
+        waiter.reject(new Error(error));
+      } else {
+        waiter.resolve(translated_text);
+      }
+    }
+  });
+});
+
 window.addEventListener('translationStateChanged', (event) => {
   is_translation_enabled = event.detail.enabled;
   if (!is_translation_enabled) {
     hidePopup();
   }
 });
+
+const translateText = async function (text) {
+  const result = JSON.parse(await window.translator.translate(text));
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return new Promise((resolve, reject) => {
+    worker_waiter[result.worker] = { resolve, reject };
+    setTimeout(() => {
+      if (worker_waiter[result.worker]) {
+        delete worker_waiter[result.worker];
+        reject(new Error('Translation timeout'));
+      }
+    }, 60000);
+  });
+};
 
 function createPopup() {
   const popup = document.createElement('div');

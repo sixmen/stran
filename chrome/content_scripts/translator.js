@@ -1,6 +1,3 @@
-const STORAGE_API_KEY = 'api_key';
-const STORAGE_TARGET_LANG = 'target_lang';
-
 let popup = null;
 let is_translation_enabled = false;
 let last_highlighted_element = null;
@@ -25,6 +22,9 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+const STORAGE_API_KEY = 'api_key';
+const STORAGE_TARGET_LANG = 'target_lang';
+
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'translationStateChanged') {
     is_translation_enabled = message.enabled;
@@ -33,6 +33,35 @@ chrome.runtime.onMessage.addListener((message) => {
     }
   }
 });
+
+const translateText = async function (text, api_key, target_lang) {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${api_key}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a translator. Translate the given text to ${LANGUAGES[target_lang]}. Only respond with the translated text, without any additional explanation or context.`,
+        },
+        {
+          role: 'user',
+          content: text,
+        },
+      ],
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error?.message || 'Translation failed');
+  }
+  const translated_text = data.choices[0].message.content.trim();
+  return translated_text;
+};
 
 function createPopup() {
   const popup = document.createElement('div');
@@ -183,32 +212,7 @@ async function handleTranslate() {
         container.appendChild(result_element);
         paragraph_node.parentNode.insertBefore(container, paragraph_node_next_sibling);
 
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${api_key}`,
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: `You are a translator. Translate the given text to ${LANGUAGES[target_lang]}. Only respond with the translated text, without any additional explanation or context.`,
-              },
-              {
-                role: 'user',
-                content: paragraph,
-              },
-            ],
-          }),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error?.message || 'Translation failed');
-        }
-        const translated_text = data.choices[0].message.content.trim();
-        result_element.textContent = translated_text;
+        result_element.textContent = await translateText(paragraph, api_key, target_lang);
       } catch (error) {
         result_element.textContent = `Translation error: ${error.message}`;
       }
