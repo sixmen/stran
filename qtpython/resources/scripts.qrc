@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="translator.js">translator.js</file>
+    </qresource>
+</RCC>
