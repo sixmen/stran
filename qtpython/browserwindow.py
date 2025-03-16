@@ -135,7 +135,7 @@ class BrowserWindow(QMainWindow):
 
         return tab_widget
 
-    def _url_changed(self, url):
+    def _url_changed(self, url: QUrl):
         self._url_line_edit.setText(url.toDisplayString())
 
     def _create_file_menu(self):

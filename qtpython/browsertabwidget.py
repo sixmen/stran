@@ -91,7 +91,7 @@ class BrowserTabWidget(QTabWidget):
         if self.currentIndex() == index:
             self.title_changed.emit(title)
 
-    def _url_changed(self, web_view: BrowserWebView, url: str):
+    def _url_changed(self, web_view: BrowserWebView, url: QUrl):
         index = self.indexOf(web_view)
 
         # update the url input text of the window if 'web_view' is the current tab
