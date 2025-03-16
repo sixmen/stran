@@ -32,6 +32,7 @@ class BrowserWindow(QMainWindow):
     _history_back_action: QAction
     _history_forward_action: QAction
     _url_line_edit: QLineEdit
+    _translation_action: QAction
 
     _tab_widget: BrowserTabWidget
 
@@ -49,6 +50,7 @@ class BrowserWindow(QMainWindow):
             self._history_back_action,
             self._history_forward_action,
             self._url_line_edit,
+            self._translation_action,
         ] = self._create_tool_bar()
         self.addToolBar(self._toolbar)
         self.addToolBarBreak()
@@ -88,11 +90,17 @@ class BrowserWindow(QMainWindow):
         )
         focus_url_line_edit_action.triggered.connect(self._focus_url_line_edit)
 
+        translation_action = QAction(self)
+        translation_action.setIcon(QIcon(":icon-disabled"))
+        translation_action.triggered.connect(self._toggle_translation)
+        navigation_bar.addAction(translation_action)
+
         return [
             navigation_bar,
             history_back_action,
             history_forward_action,
             url_line_edit,
+            translation_action,
         ]
 
     def _go_back(self):
@@ -108,6 +116,9 @@ class BrowserWindow(QMainWindow):
     def _focus_url_line_edit(self):
         self._url_line_edit.setFocus(Qt.FocusReason.ShortcutFocusReason)
 
+    def _toggle_translation(self):
+        self._tab_widget.current_web_view().toggle_translation()
+
     def _create_tab_widget(self, profile: QWebEngineProfile) -> BrowserTabWidget:
         tab_widget = BrowserTabWidget(self, profile)
 
@@ -115,6 +126,9 @@ class BrowserWindow(QMainWindow):
         tab_widget.url_changed.connect(self._url_changed)
         tab_widget.web_action_enabled_changed.connect(
             self._handle_web_action_enabled_changed
+        )
+        tab_widget.translation_enabled_changed.connect(
+            self._handle_translation_enabled_changed
         )
         tab_widget.close_window.connect(self.close)
 
@@ -172,6 +186,12 @@ class BrowserWindow(QMainWindow):
             self._history_back_action.setEnabled(enabled)
         elif action == QWebEnginePage.WebAction.Forward:
             self._history_forward_action.setEnabled(enabled)
+
+    def _handle_translation_enabled_changed(self, enabled):
+        if enabled:
+            self._translation_action.setIcon(QIcon(":icon-enabled"))
+        else:
+            self._translation_action.setIcon(QIcon(":icon-disabled"))
 
     def _handle_web_view_title_changed(self, title):
         suffix = "S-Tran"
