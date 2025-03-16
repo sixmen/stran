@@ -5,7 +5,7 @@ from PySide6.QtWebEngineCore import QWebEngineScript
 from PySide6.QtCore import QObject
 
 from browserwindow import BrowserWindow
-from translator import translator_script
+from translator import qwebchannel_script, translator_script
 
 
 class Browser(QObject):
@@ -32,7 +32,7 @@ class Browser(QObject):
         profile = QWebEngineProfile("stran")
 
         script = QWebEngineScript()
-        script.setSourceCode(translator_script)
+        script.setSourceCode(qwebchannel_script + translator_script)
         script.setName("translator.js")
         script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
         script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentReady)

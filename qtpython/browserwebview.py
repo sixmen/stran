@@ -5,10 +5,12 @@ from functools import partial
 from PySide6.QtCore import Signal
 from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWebEngineCore import QWebEngineProfile
+from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QMessageBox
 
 from settings import get_api_key
+from translator import TranslatorBridge
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QAction
@@ -26,6 +28,10 @@ class BrowserWebView(QWebEngineView):
         self._connect_webaction_changed(self.page(), QWebEnginePage.WebAction.Forward)
         self._connect_webaction_changed(self.page(), QWebEnginePage.WebAction.Back)
         self.loadFinished.connect(self._on_load_finished)
+
+        self._channel = QWebChannel(self)
+        self._channel.registerObject("translator", TranslatorBridge(self))
+        self.page().setWebChannel(self._channel)
 
     def _connect_webaction_changed(
         self, page: QWebEnginePage, web_action: QWebEnginePage.WebAction

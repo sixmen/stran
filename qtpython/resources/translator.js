@@ -1,10 +1,41 @@
-const STORAGE_API_KEY = 'api_key';
-const STORAGE_TARGET_LANG = 'target_lang';
-
 let popup = null;
 let is_translation_enabled = false;
 let last_highlighted_element = null;
 let translating = false;
+
+const worker_waiter = {};
+
+new QWebChannel(qt.webChannelTransport, function (channel) {
+  window.translator = channel.objects.translator;
+  window.translator.translationComplete.connect((result) => {
+    const { worker, error, translated_text } = JSON.parse(result);
+    const waiter = worker_waiter[worker];
+    if (waiter) {
+      delete worker_waiter[worker];
+      if (error) {
+        waiter.reject(new Error(error));
+      } else {
+        waiter.resolve(translated_text);
+      }
+    }
+  });
+});
+
+const translateText = async function (text) {
+  const result = JSON.parse(await window.translator.translate(text));
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return new Promise((resolve, reject) => {
+    worker_waiter[result.worker] = { resolve, reject };
+    setTimeout(() => {
+      if (worker_waiter[result.worker]) {
+        delete worker_waiter[result.worker];
+        reject(new Error('Translation timeout'));
+      }
+    }, 60000);
+  });
+};
 
 const LANGUAGES = {
   ko: '한국어',
@@ -107,14 +138,6 @@ async function handleTranslate() {
 
   hidePopup();
 
-  const storage = await browser.storage.local.get([STORAGE_API_KEY, STORAGE_TARGET_LANG]);
-  const api_key = storage[STORAGE_API_KEY];
-  const target_lang = storage[STORAGE_TARGET_LANG] || 'ko'; // Default to Korean if not set
-  if (!api_key) {
-    alert('Please set your OpenAI API key in the extension settings');
-    return;
-  }
-
   try {
     translating = true;
 
@@ -181,32 +204,7 @@ async function handleTranslate() {
         container.appendChild(result_element);
         paragraph_node.parentNode.insertBefore(container, paragraph_node_next_sibling);
 
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${api_key}`,
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: `You are a translator. Translate the given text to ${LANGUAGES[target_lang]}. Only respond with the translated text, without any additional explanation or context.`,
-              },
-              {
-                role: 'user',
-                content: paragraph,
-              },
-            ],
-          }),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error?.message || 'Translation failed');
-        }
-        const translated_text = data.choices[0].message.content.trim();
-        result_element.textContent = translated_text;
+        result_element.textContent = await translateText(paragraph);
       } catch (error) {
         result_element.textContent = `Translation error: ${error.message}`;
       }
