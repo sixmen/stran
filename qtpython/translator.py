@@ -71,8 +71,8 @@ class TranslatorBridge(QObject):
         super().__init__(parent)
         self._workers = []
 
-    @Slot(str, result=str)
-    def translate(self, text):
+    @Slot(str, result=str)  # type: ignore
+    def translate(self, text: str) -> str:
         if not text:
             return json.dumps({"error": "No text provided"})
 
@@ -91,11 +91,11 @@ class TranslatorBridge(QObject):
 
 
 file = QFile(":/qtwebchannel/qwebchannel.js")
-file.open(QFile.ReadOnly)
-qwebchannel_script = file.readAll().data().decode("utf8")
+file.open(QFile.OpenModeFlag.ReadOnly)
+qwebchannel_script = bytes(file.readAll().data()).decode("utf8")
 file.close()
 
 file = QFile(":translator.js")
-file.open(QFile.ReadOnly)
-translator_script = file.readAll().data().decode("utf8")
+file.open(QFile.OpenModeFlag.ReadOnly)
+translator_script = bytes(file.readAll().data()).decode("utf8")
 file.close()
