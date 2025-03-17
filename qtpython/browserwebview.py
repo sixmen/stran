@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from functools import partial
 
 from PySide6.QtCore import Signal
@@ -69,8 +69,8 @@ class BrowserWebView(QWebEngineView):
     def is_translation_enabled(self):
         return self._translation_enabled
 
-    def createWindow(self, type: QWebEnginePage.WebWindowType) -> QWebEngineView | None:
-        main_window: BrowserWindow = self.window()
+    def createWindow(self, type: QWebEnginePage.WebWindowType) -> QWebEngineView | None:  # type: ignore
+        main_window = cast(BrowserWindow, self.window())
         if not main_window:
             return None
 

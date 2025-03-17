@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from functools import partial
 
 from PySide6.QtWebEngineCore import QWebEnginePage
@@ -57,7 +57,7 @@ class BrowserTabWidget(QTabWidget):
             self.setCurrentWidget(web_view)
         return web_view
 
-    def current_web_view(self) -> BrowserWebView:
+    def current_web_view(self) -> BrowserWebView | None:
         return self._web_view(self.currentIndex())
 
     def close_tab(self, index: int):
@@ -79,7 +79,7 @@ class BrowserTabWidget(QTabWidget):
             current_web_view.triggerPageAction(action)
 
     def _web_view(self, index: int) -> BrowserWebView | None:
-        return self.widget(index)
+        return cast(BrowserWebView, self.widget(index))
 
     def _title_changed(self, web_view: BrowserWebView, title: str):
         index = self.indexOf(web_view)
@@ -122,24 +122,29 @@ class BrowserTabWidget(QTabWidget):
     def _handle_current_changed(self, index: int):
         if index >= 0:
             current_web_view = self._web_view(index)
-            self.title_changed.emit(current_web_view.title())
-            self.url_changed.emit(current_web_view.url())
-            self.web_action_enabled_changed.emit(
-                QWebEnginePage.WebAction.Back,
-                current_web_view.is_web_action_enabled(QWebEnginePage.WebAction.Back),
-            )
-            self.web_action_enabled_changed.emit(
-                QWebEnginePage.WebAction.Forward,
-                current_web_view.is_web_action_enabled(
-                    QWebEnginePage.WebAction.Forward
-                ),
-            )
-            self.translation_enabled_changed.emit(
-                current_web_view.is_translation_enabled()
-            )
+            if current_web_view is not None:
+                self.title_changed.emit(current_web_view.title())
+                self.url_changed.emit(current_web_view.url())
+                self.web_action_enabled_changed.emit(
+                    QWebEnginePage.WebAction.Back,
+                    current_web_view.is_web_action_enabled(
+                        QWebEnginePage.WebAction.Back
+                    ),
+                )
+                self.web_action_enabled_changed.emit(
+                    QWebEnginePage.WebAction.Forward,
+                    current_web_view.is_web_action_enabled(
+                        QWebEnginePage.WebAction.Forward
+                    ),
+                )
+                self.translation_enabled_changed.emit(
+                    current_web_view.is_translation_enabled()
+                )
         else:
             self.title_changed.emit("")
             self.url_changed.emit(QUrl())
-            self.web_action_enabled_changed.emit(QWebEnginePage.Back, False)
-            self.web_action_enabled_changed.emit(QWebEnginePage.Forward, False)
+            self.web_action_enabled_changed.emit(QWebEnginePage.WebAction.Back, False)
+            self.web_action_enabled_changed.emit(
+                QWebEnginePage.WebAction.Forward, False
+            )
             self.translation_enabled_changed.emit(False)
